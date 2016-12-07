@@ -39,7 +39,110 @@
                               %))
                      last)))
          (apply str))))
-         
+
+;; Day six
+
+(defmethod d/puzzle 6
+  [_ in]
+  (->> (string/split in #"\n")
+       (apply map (fn [& cs]
+                    (->> cs
+                         frequencies
+                         (sort-by last)
+                         last
+                         first)))
+       (apply str)))
+
+(defmethod d/puzzle 6.2
+  [_ in]
+  (->> (string/split in #"\n")
+       (apply map (fn [& cs]
+                    (->> cs
+                         frequencies
+                         (sort-by last)
+                         first
+                         first)))
+       (apply str)))
+
+;; Day seven
+
+(defn has-abba?
+  [s]
+  (loop [stk (list)
+         s (into (list) s)]
+    (let [h (peek stk)
+          c (peek s)]
+      (cond
+        (nil? c) false
+        (not= c h) (recur (conj stk c)
+                          (pop s))
+        :else (let [s' (pop s)
+                    h2 (peek (pop stk))
+                    c2 (peek s')]
+                (if (and (= c2 h2)
+                         (not= c c2))
+                  true
+                  (recur (conj stk c)
+                         s')))))))
+(defn split-hypernets
+  [s]
+  (reduce (fn [[h nh] i]
+            (if (.contains ^String i "]")
+              (let [[he nhe] (string/split i #"\]")]
+                [(conj h he) (conj nh nhe)])
+              [h (conj nh i)]))
+          [[] []]
+          (string/split s #"\[")))
+
+(defn has-tls?
+  [s]
+  (let [[hypn n-hypn] (split-hypernets s)]
+    (and (some has-abba? n-hypn)
+         (every? (comp not has-abba?) hypn))))
+
+(defn babs
+  "Get all the BABs for ABAs in the string"
+  [s]
+  (loop [res (list)
+         stk (list)
+         s (into (list) s)]
+    (let [h (peek stk)
+          s' (pop s)
+          c (peek s)
+          c' (peek s')]
+      (cond
+        (nil? c') res
+        (or (not= c' h)
+            (= c c'))   (recur res
+                               (conj stk c)
+                               s')
+        :else (recur (conj res (str c h c))
+                     (conj stk c)
+                     s')))))
+
+(defn has-ssl?
+  [s]
+  (let [[hypns n-hypns] (split-hypernets s)
+        abas (->> n-hypns
+                  (map babs)
+                  flatten
+                  (into #{}))]
+    (when (seq abas)
+      (some (fn [h]
+              (some #(.contains ^String h %) abas)) hypns))))
+
+(defmethod d/puzzle 7
+  [_ in]
+  (->> (string/split in #"\n")
+       (filter has-tls?)
+       count))
+
+(defmethod d/puzzle 7.2
+  [_ in]
+  (->> (string/split in #"\n")
+       (filter has-ssl?)
+       count))
+
 (defn -main
   "First arg is puzzle number in the form day[.2]?
    puzzle input on stdin"
